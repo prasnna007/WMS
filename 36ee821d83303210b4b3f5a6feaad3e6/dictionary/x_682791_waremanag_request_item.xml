@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="c7235e1583703210b4b3f5a6feaad32c" label="Request Item" max_length="40" name="x_682791_waremanag_request_item" type="collection">
+        <element choice="1" default="requested" label="Status" max_length="40" name="u_status" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Picked" sequence="2" value="picked"/>
+                <element inactive_on_update="false" label="Shipped" sequence="3" value="shipped"/>
+                <element inactive_on_update="false" label="Requested" sequence="0" value="requested"/>
+                <element inactive_on_update="false" label="Received" sequence="4" value="received"/>
+                <element inactive_on_update="false" label="Allocated" sequence="1" value="allocated"/>
+            </choice>
+        </element>
+        <element attributes="edge_encryption_enabled=true" label="Serial Numbers" max_length="1000" name="u_serial_numbers" type="string"/>
+        <element attributes="encode_utf8=false" label="Request" mandatory="true" max_length="32" name="request" reference="x_682791_waremanag_request" type="reference"/>
+        <element attributes="encode_utf8=false" label="Item" mandatory="true" max_length="32" name="u_item" reference="x_682791_waremanag_item" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" label="Notes" max_length="500" name="u_notes" type="string"/>
+        <element label="Quantity" mandatory="true" max_length="20" name="u_quantity" type="decimal"/>
+        <index name="index">
+            <element name="request"/>
+        </index>
+        <index name="index2">
+            <element name="u_item"/>
+        </index>
+    </element>
+</database>

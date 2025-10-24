@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="72231e1583703210b4b3f5a6feaad345" label="Category" max_length="40" name="x_682791_waremanag_category" type="collection">
+        <element attributes="edge_encryption_enabled=true" label="Name" mandatory="true" max_length="100" name="u_name" type="string"/>
+        <element attributes="encode_utf8=false" label="Parent Category" max_length="32" name="u_parent" reference="x_682791_waremanag_category" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" label="Description" max_length="500" name="u_description" type="string"/>
+        <element default="true" label="Active" max_length="40" name="u_active" type="boolean"/>
+        <index name="index">
+            <element name="u_parent"/>
+        </index>
+    </element>
+</database>

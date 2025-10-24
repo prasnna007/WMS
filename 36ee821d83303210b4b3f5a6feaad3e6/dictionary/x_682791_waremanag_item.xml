@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="5b235e1583703210b4b3f5a6feaad36d" label="Inventory Item" max_length="40" name="x_682791_waremanag_item" type="collection">
+        <element attributes="encode_utf8=false" label="Category" max_length="32" name="u_category" reference="x_682791_waremanag_category" type="reference"/>
+        <element label="Is Serialized" max_length="40" name="u_is_serialized" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" label="Name" mandatory="true" max_length="150" name="u_name" type="string"/>
+        <element choice="1" default="each" label="Unit" max_length="40" name="u_unit" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Kg" sequence="2" value="kg"/>
+                <element inactive_on_update="false" label="L" sequence="3" value="l"/>
+                <element inactive_on_update="false" label="Each" sequence="0" value="each"/>
+                <element inactive_on_update="false" label="Box" sequence="1" value="box"/>
+            </choice>
+        </element>
+        <element default="true" label="Active" max_length="40" name="u_active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" label="Description" max_length="1000" name="u_description" type="string"/>
+        <element default="0" label="Reorder Level" max_length="40" name="u_reorder_level" type="integer"/>
+        <element attributes="edge_encryption_enabled=true" label="SKU" mandatory="true" max_length="50" name="u_sku" type="string"/>
+        <element default="0" label="Reorder Quantity" max_length="40" name="u_reorder_quantity" type="integer"/>
+        <index name="index">
+            <element name="u_category"/>
+        </index>
+        <index name="index2" unique="true">
+            <element name="u_sku"/>
+        </index>
+    </element>
+</database>

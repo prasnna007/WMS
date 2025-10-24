@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="fe231e1583703210b4b3f5a6feaad3af" label="Stock Movement" max_length="40" name="x_682791_waremanag_stock_movement" type="collection">
+        <element attributes="encode_utf8=false" label="To Warehouse" max_length="32" name="u_to_warehouse" reference="x_682791_waremanag_warehouse" type="reference"/>
+        <element attributes="encode_utf8=false" default="javascript:gs.getUserID();" label="Performed By" max_length="32" name="u_performed_by" reference="sys_user" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" label="Reason" max_length="500" name="u_reason" type="string"/>
+        <element label="Quantity" mandatory="true" max_length="20" name="u_quantity" type="decimal"/>
+        <element choice="3" label="Movement Type" mandatory="true" max_length="40" name="u_movement_type" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="ADJUSTMENT" sequence="3" value="adjustment"/>
+                <element inactive_on_update="false" label="IN" sequence="0" value="in"/>
+                <element inactive_on_update="false" label="OUT" sequence="1" value="out"/>
+                <element inactive_on_update="false" label="TRANSFER" sequence="2" value="transfer"/>
+            </choice>
+        </element>
+        <element attributes="encode_utf8=false" label="Item" mandatory="true" max_length="32" name="u_item" reference="x_682791_waremanag_item" type="reference"/>
+        <element attributes="encode_utf8=false" label="From Warehouse" max_length="32" name="u_from_warehouse" reference="x_682791_waremanag_warehouse" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" label="Reference" max_length="200" name="u_reference" type="string"/>
+        <index name="index">
+            <element name="u_from_warehouse"/>
+        </index>
+        <index name="index2">
+            <element name="u_item"/>
+        </index>
+        <index name="index3">
+            <element name="u_performed_by"/>
+        </index>
+        <index name="index4">
+            <element name="u_to_warehouse"/>
+        </index>
+    </element>
+</database>
