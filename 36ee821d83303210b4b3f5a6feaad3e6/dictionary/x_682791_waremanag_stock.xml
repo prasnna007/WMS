@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="fa231e1583703210b4b3f5a6feaad371" label="Stock" max_length="40" name="x_682791_waremanag_stock" type="collection">
+        <element default="0" label="Quantity" max_length="20" name="u_quantity" type="decimal"/>
+        <element attributes="edge_encryption_enabled=true" label="Last Updated" max_length="40" name="u_last_updated" read_only="true" type="glide_date_time"/>
+        <element default="0" label="Reserved" max_length="20" name="u_reserved" type="decimal"/>
+        <element attributes="encode_utf8=false" label="Warehouse" mandatory="true" max_length="32" name="u_warehouse" reference="x_682791_waremanag_warehouse" type="reference"/>
+        <element function_definition="glidefunction:subtract(u_quantity, u_reserved)" function_field="true" label="Available" max_length="20" name="u_available" read_only="true" type="decimal"/>
+        <element attributes="encode_utf8=false" label="Item" mandatory="true" max_length="32" name="u_item" reference="x_682791_waremanag_item" type="reference"/>
+        <index name="index">
+            <element name="u_item"/>
+        </index>
+        <index name="index2" unique="true">
+            <element name="u_warehouse"/>
+            <element name="u_item"/>
+        </index>
+        <index name="index3">
+            <element name="u_warehouse"/>
+        </index>
+    </element>
+</database>

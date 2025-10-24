@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="87231e1583703210b4b3f5a6feaad3e9" label="Warehouse" max_length="40" name="x_682791_waremanag_warehouse" type="collection">
+        <element choice="1" label="Type" max_length="40" name="u_type" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Regional" sequence="1" value="regional"/>
+                <element inactive_on_update="false" label="Local" sequence="2" value="local"/>
+                <element inactive_on_update="false" label="Central" sequence="0" value="central"/>
+            </choice>
+        </element>
+        <element attributes="edge_encryption_enabled=true" label="Name" mandatory="true" max_length="100" name="u_name" type="string"/>
+        <element default="true" label="Active" max_length="40" name="u_active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" label="Code" mandatory="true" max_length="20" name="u_code" type="string"/>
+        <element attributes="encode_utf8=false" label="Location" max_length="32" name="u_location" reference="cmn_location" type="reference"/>
+        <element label="Capacity" max_length="40" name="u_capacity" type="integer"/>
+        <element attributes="encode_utf8=false" label="Contact" max_length="32" name="u_contact" reference="sys_user" type="reference"/>
+        <index name="index" unique="true">
+            <element name="u_code"/>
+        </index>
+        <index name="index2">
+            <element name="u_contact"/>
+        </index>
+        <index name="index3">
+            <element name="u_location"/>
+        </index>
+    </element>
+</database>

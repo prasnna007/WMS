@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_module">
+    <sys_module action="INSERT_OR_UPDATE">
+        <content><![CDATA[{
+  "name": "x-682791-waremanager",
+  "version": "1.0.0",
+  "description": "[BUILD AGENT GENERATED]:  Comprehensive warehouse management system for tracking inventory, stock movements, requests, and approvals with full audit trail",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "now-sdk build",
+    "deploy": "now-sdk install",
+    "transform": "now-sdk transform",
+    "types": "now-sdk dependencies"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@servicenow/sdk": "4.0.2",
+    "@servicenow/glide": "26.0.1",
+    "eslint": "8.50.0",
+    "@servicenow/eslint-plugin-sdk-app-plugin": "4.0.2"
+  }
+}]]></content>
+        <external_source>false</external_source>
+        <path>x_682791_waremanag/x-682791-waremanager/1.0.0/package.json</path>
+        <sys_class_name>sys_module</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2025-10-24 07:43:42</sys_created_on>
+        <sys_id>0374ab4df3114fca8c79f2f73686e89d</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>x_682791_waremanag/x-682791-waremanager/1.0.0/package.json</sys_name>
+        <sys_package display_value="Waremanager" source="x_682791_waremanag">36ee821d83303210b4b3f5a6feaad3e6</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Waremanager">36ee821d83303210b4b3f5a6feaad3e6</sys_scope>
+        <sys_update_name>sys_module_0374ab4df3114fca8c79f2f73686e89d</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2025-10-24 07:43:42</sys_updated_on>
+    </sys_module>
+</record_update>

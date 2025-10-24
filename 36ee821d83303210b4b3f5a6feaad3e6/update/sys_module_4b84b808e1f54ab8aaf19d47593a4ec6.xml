@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_module">
+    <sys_module action="INSERT_OR_UPDATE">
+        <content><![CDATA[import { gs, GlideRecord } from '@servicenow/glide'
+
+export function setRequesterOnInsert(current, previous) {
+  // Auto-set requester to current user if not provided
+  if (!current.getValue('u_requester')) {
+    current.setValue('u_requester', gs.getUserID())
+  }
+  
+  // Generate number if not present
+  if (!current.getValue('number')) {
+    current.setValue('number', gs.generateGUID())
+  }
+}
+
+export function validateStockOnSubmit(current, previous) {
+  if (current.getValue('state') === 'submitted' && previous.getValue('state') !== 'submitted') {
+    const requestSysId = current.getUniqueValue()
+    const warehouseSysId = current.getValue('u_warehouse')
+    
+    // Check all request items for stock availability
+    const requestItems = new GlideRecord('x_682791_waremanag_request_item')
+    requestItems.addQuery('request', requestSysId)
+    requestItems.query()
+    
+    let hasStockIssues = false
+    const stockIssues = []
+    
+    while (requestItems.next()) {
+      const itemSysId = requestItems.getValue('u_item')
+      const requestedQty = parseFloat(requestItems.getValue('u_quantity'))
+      
+      // Check stock availability
+      const stock = new GlideRecord('x_682791_waremanag_stock')
+      stock.addQuery('u_warehouse', warehouseSysId)
+      stock.addQuery('u_item', itemSysId)
+      stock.query()
+      
+      if (stock.next()) {
+        const availableQty = parseFloat(stock.getValue('u_available'))
+        if (availableQty < requestedQty) {
+          hasStockIssues = true
+          stockIssues.push(`Item ${requestItems.getDisplayValue('u_item')} - Available: ${availableQty}, Requested: ${requestedQty}`)
+        }
+      } else {
+        hasStockIssues = true
+        stockIssues.push(`Item ${requestItems.getDisplayValue('u_item')} - No stock available`)
+      }
+    }
+    
+    if (hasStockIssues) {
+      gs.addErrorMessage('Stock validation failed: ' + stockIssues.join('; '))
+      current.setAbortAction(true)
+      return false
+    }
+    
+    // Reserve stock for approved items
+    reserveStock(requestSysId, warehouseSysId)
+    
+    // Set state to pending approval
+    current.setValue('state', 'pending_approval')
+    
+    // Create notification for approvers
+    gs.addInfoMessage('Request submitted successfully and stock reserved')
+  }
+  
+  return true
+}
+
+function reserveStock(requestSysId, warehouseSysId) {
+  const requestItems = new GlideRecord('x_682791_waremanag_request_item')
+  requestItems.addQuery('request', requestSysId)
+  requestItems.query()
+  
+  while (requestItems.next()) {
+    const itemSysId = requestItems.getValue('u_item')
+    const requestedQty = parseFloat(requestItems.getValue('u_quantity'))
+    
+    // Update stock reserved quantity
+    const stock = new GlideRecord('x_682791_waremanag_stock')
+    stock.addQuery('u_warehouse', warehouseSysId)
+    stock.addQuery('u_item', itemSysId)
+    stock.query()
+    
+    if (stock.next()) {
+      const currentReserved = parseFloat(stock.getValue('u_reserved') || '0')
+      stock.setValue('u_reserved', currentReserved + requestedQty)
+      stock.setValue('u_last_updated', new GlideDateTime().getDisplayValue())
+      stock.update()
+      
+      // Create tentative stock movement record
+      const movement = new GlideRecord('x_682791_waremanag_stock_movement')
+      movement.initialize()
+      movement.setValue('u_item', itemSysId)
+      movement.setValue('u_from_warehouse', warehouseSysId)
+      movement.setValue('u_quantity', requestedQty)
+      movement.setValue('u_movement_type', 'out')
+      movement.setValue('u_reference', `Request: ${requestSysId}`)
+      movement.setValue('u_reason', 'Stock reserved for request')
+      movement.setValue('u_performed_by', gs.getUserID())
+      movement.insert()
+    }
+  }
+}
+
+export function processApprovalDecision(current, previous) {
+  const currentState = current.getValue('state')
+  const previousState = previous.getValue('state')
+  
+  if (previousState === 'pending_approval') {
+    if (currentState === 'approved') {
+      processApproval(current)
+    } else if (currentState === 'rejected' || currentState === 'cancelled') {
+      rollbackReservation(current)
+    }
+  }
+}
+
+function processApproval(current) {
+  const requestSysId = current.getUniqueValue()
+  const warehouseSysId = current.getValue('u_warehouse')
+  
+  // Process each request item
+  const requestItems = new GlideRecord('x_682791_waremanag_request_item')
+  requestItems.addQuery('request', requestSysId)
+  requestItems.query()
+  
+  while (requestItems.next()) {
+    const itemSysId = requestItems.getValue('u_item')
+    const approvedQty = parseFloat(requestItems.getValue('u_quantity'))
+    
+    // Update stock quantities
+    const stock = new GlideRecord('x_682791_waremanag_stock')
+    stock.addQuery('u_warehouse', warehouseSysId)
+    stock.addQuery('u_item', itemSysId)
+    stock.query()
+    
+    if (stock.next()) {
+      const currentQty = parseFloat(stock.getValue('u_quantity'))
+      const currentReserved = parseFloat(stock.getValue('u_reserved'))
+      
+      stock.setValue('u_quantity', currentQty - approvedQty)
+      stock.setValue('u_reserved', currentReserved - approvedQty)
+      stock.setValue('u_last_updated', new GlideDateTime().getDisplayValue())
+      stock.update()
+      
+      // Update request item status
+      requestItems.setValue('u_status', 'allocated')
+      requestItems.update()
+      
+      // Create final stock movement record
+      const movement = new GlideRecord('x_682791_waremanag_stock_movement')
+      movement.initialize()
+      movement.setValue('u_item', itemSysId)
+      movement.setValue('u_from_warehouse', warehouseSysId)
+      movement.setValue('u_quantity', approvedQty)
+      movement.setValue('u_movement_type', 'out')
+      movement.setValue('u_reference', `Approved Request: ${requestSysId}`)
+      movement.setValue('u_reason', 'Stock allocated for approved request')
+      movement.setValue('u_performed_by', gs.getUserID())
+      movement.insert()
+    }
+  }
+  
+  gs.addInfoMessage('Request approved and stock allocated successfully')
+}
+
+function rollbackReservation(current) {
+  const requestSysId = current.getUniqueValue()
+  const warehouseSysId = current.getValue('u_warehouse')
+  
+  // Rollback reserved quantities
+  const requestItems = new GlideRecord('x_682791_waremanag_request_item')
+  requestItems.addQuery('request', requestSysId)
+  requestItems.query()
+  
+  while (requestItems.next()) {
+    const itemSysId = requestItems.getValue('u_item')
+    const reservedQty = parseFloat(requestItems.getValue('u_quantity'))
+    
+    // Update stock reserved quantity
+    const stock = new GlideRecord('x_682791_waremanag_stock')
+    stock.addQuery('u_warehouse', warehouseSysId)
+    stock.addQuery('u_item', itemSysId)  
+    stock.query()
+    
+    if (stock.next()) {
+      const currentReserved = parseFloat(stock.getValue('u_reserved'))
+      stock.setValue('u_reserved', Math.max(0, currentReserved - reservedQty))
+      stock.setValue('u_last_updated', new GlideDateTime().getDisplayValue())
+      stock.update()
+    }
+  }
+  
+  gs.addInfoMessage('Stock reservation rolled back')
+}]]></content>
+        <external_source>false</external_source>
+        <path>x_682791_waremanag/x-682791-waremanager/1.0.0/src/server/request-workflow.js</path>
+        <sys_class_name>sys_module</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2025-10-24 07:43:42</sys_created_on>
+        <sys_id>4b84b808e1f54ab8aaf19d47593a4ec6</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>x_682791_waremanag/x-682791-waremanager/1.0.0/src/server/request-workflow.js</sys_name>
+        <sys_package display_value="Waremanager" source="x_682791_waremanag">36ee821d83303210b4b3f5a6feaad3e6</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Waremanager">36ee821d83303210b4b3f5a6feaad3e6</sys_scope>
+        <sys_update_name>sys_module_4b84b808e1f54ab8aaf19d47593a4ec6</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2025-10-24 07:43:42</sys_updated_on>
+    </sys_module>
+</record_update>

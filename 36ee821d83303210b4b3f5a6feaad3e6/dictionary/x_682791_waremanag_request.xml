@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element audit="true" db_object_id="ae231ed183703210b4b3f5a6feaad3bd" label="Warehouse Request" max_length="40" name="x_682791_waremanag_request" type="collection">
+        <element attributes="edge_encryption_enabled=true" label="Notes" max_length="2000" name="u_notes" type="string"/>
+        <element attributes="encode_utf8=false" label="Requested For" max_length="32" name="u_requested_for" reference="sys_user" type="reference"/>
+        <element attributes="encode_utf8=false" label="Warehouse" mandatory="true" max_length="32" name="u_warehouse" reference="x_682791_waremanag_warehouse" type="reference"/>
+        <element attributes="encode_utf8=false" label="Requester" mandatory="true" max_length="32" name="u_requester" reference="sys_user" type="reference"/>
+        <element choice="1" default="draft" label="State" max_length="40" name="state" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Pending Approval" sequence="2" value="pending_approval"/>
+                <element inactive_on_update="false" label="Cancelled" sequence="6" value="cancelled"/>
+                <element inactive_on_update="false" label="Approved" sequence="3" value="approved"/>
+                <element inactive_on_update="false" label="Draft" sequence="0" value="draft"/>
+                <element inactive_on_update="false" label="Rejected" sequence="4" value="rejected"/>
+                <element inactive_on_update="false" label="Submitted" sequence="1" value="submitted"/>
+                <element inactive_on_update="false" label="Fulfilled" sequence="5" value="fulfilled"/>
+            </choice>
+        </element>
+        <element attributes="edge_encryption_enabled=true" default="javascript:global.getNextObjNumberPadded();" label="Number" max_length="40" name="number" read_only="true" type="string"/>
+        <element choice="1" default="medium" label="Priority" max_length="40" name="u_priority" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="High" sequence="2" value="high"/>
+                <element inactive_on_update="false" label="Urgent" sequence="3" value="urgent"/>
+                <element inactive_on_update="false" label="Low" sequence="0" value="low"/>
+                <element inactive_on_update="false" label="Medium" sequence="1" value="medium"/>
+            </choice>
+        </element>
+        <index name="index">
+            <element name="u_requested_for"/>
+        </index>
+        <index name="index2">
+            <element name="u_requester"/>
+        </index>
+        <index name="index3">
+            <element name="u_warehouse"/>
+        </index>
+    </element>
+</database>

@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_module">
+    <sys_module action="INSERT_OR_UPDATE">
+        <content><![CDATA[import { RESTAPIRequest, RESTAPIResponse, GlideRecord, gs } from '@servicenow/glide/sn_ws_int'
+
+export function getWarehouses(request, response) {
+  try {
+    const gr = new GlideRecord('x_682791_waremanag_warehouse')
+    
+    // Add filters from query parameters
+    if (request.queryParams.active) {
+      gr.addQuery('u_active', request.queryParams.active)
+    }
+    if (request.queryParams.location) {
+      gr.addQuery('u_location', request.queryParams.location)
+    }
+    if (request.queryParams.type) {
+      gr.addQuery('u_type', request.queryParams.type)
+    }
+    
+    gr.orderBy('u_name')
+    gr.query()
+    
+    const warehouses = []
+    while (gr.next()) {
+      warehouses.push({
+        sys_id: gr.getUniqueValue(),
+        name: gr.getValue('u_name'),
+        code: gr.getValue('u_code'),
+        location: gr.getDisplayValue('u_location'),
+        contact: gr.getDisplayValue('u_contact'),
+        type: gr.getValue('u_type'),
+        active: gr.getValue('u_active'),
+        capacity: gr.getValue('u_capacity')
+      })
+    }
+    
+    response.setStatus(200)
+    response.setBody({
+      result: warehouses,
+      count: warehouses.length
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function searchItems(request, response) {
+  try {
+    const gr = new GlideRecord('x_682791_waremanag_item')
+    
+    // Search query
+    if (request.queryParams.q) {
+      const query = request.queryParams.q
+      gr.addQuery('u_sku', 'CONTAINS', query)
+        .addOrCondition('u_name', 'CONTAINS', query)
+        .addOrCondition('u_category.u_name', 'CONTAINS', query)
+    }
+    
+    // Filter by active items
+    if (request.queryParams.active !== 'false') {
+      gr.addQuery('u_active', 'true')
+    }
+    
+    gr.orderBy('u_name')
+    gr.setLimit(100) // Limit results
+    gr.query()
+    
+    const items = []
+    while (gr.next()) {
+      items.push({
+        sys_id: gr.getUniqueValue(),
+        sku: gr.getValue('u_sku'),
+        name: gr.getValue('u_name'),
+        description: gr.getValue('u_description'),
+        category: gr.getDisplayValue('u_category'),
+        unit: gr.getValue('u_unit'),
+        reorder_level: gr.getValue('u_reorder_level'),
+        is_serialized: gr.getValue('u_is_serialized'),
+        active: gr.getValue('u_active')
+      })
+    }
+    
+    response.setStatus(200)
+    response.setBody({
+      result: items,
+      count: items.length
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function getStock(request, response) {
+  try {
+    const warehouseSysId = request.queryParams.warehouse
+    
+    if (!warehouseSysId) {
+      response.setStatus(400)
+      response.setBody({
+        error: 'Bad Request',
+        message: 'warehouse parameter is required'
+      })
+      return
+    }
+    
+    const gr = new GlideRecord('x_682791_waremanag_stock')
+    gr.addQuery('u_warehouse', warehouseSysId)
+    
+    // Filter for items with stock
+    if (request.queryParams.available_only === 'true') {
+      gr.addQuery('u_available', '>', 0)
+    }
+    
+    gr.orderBy('u_item.u_name')
+    gr.query()
+    
+    const stock = []
+    while (gr.next()) {
+      stock.push({
+        sys_id: gr.getUniqueValue(),
+        warehouse: gr.getDisplayValue('u_warehouse'),
+        item: {
+          sys_id: gr.getValue('u_item'),
+          name: gr.getDisplayValue('u_item'),
+          sku: gr.getValue('u_item.u_sku')
+        },
+        quantity: parseFloat(gr.getValue('u_quantity')),
+        reserved: parseFloat(gr.getValue('u_reserved')),
+        available: parseFloat(gr.getValue('u_available')),
+        last_updated: gr.getValue('u_last_updated')
+      })
+    }
+    
+    response.setStatus(200)
+    response.setBody({
+      result: stock,
+      count: stock.length
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function createRequest(request, response) {
+  try {
+    const data = request.body.data
+    
+    if (!data.u_warehouse || !data.items || !Array.isArray(data.items)) {
+      response.setStatus(400)
+      response.setBody({
+        error: 'Bad Request',
+        message: 'u_warehouse and items array are required'
+      })
+      return
+    }
+    
+    // Create request
+    const requestGr = new GlideRecord('x_682791_waremanag_request')
+    requestGr.initialize()
+    requestGr.setValue('u_requester', data.u_requester || gs.getUserID())
+    requestGr.setValue('u_requested_for', data.u_requested_for)
+    requestGr.setValue('u_warehouse', data.u_warehouse)
+    requestGr.setValue('u_priority', data.u_priority || 'medium')
+    requestGr.setValue('u_notes', data.u_notes)
+    requestGr.setValue('state', 'draft')
+    
+    const requestSysId = requestGr.insert()
+    
+    if (!requestSysId) {
+      response.setStatus(500)
+      response.setBody({
+        error: 'Internal Server Error',
+        message: 'Failed to create request'
+      })
+      return
+    }
+    
+    // Create request items
+    for (const item of data.items) {
+      const itemGr = new GlideRecord('x_682791_waremanag_request_item')
+      itemGr.initialize()
+      itemGr.setValue('request', requestSysId)
+      itemGr.setValue('u_item', item.u_item)
+      itemGr.setValue('u_quantity', item.u_quantity)
+      itemGr.setValue('u_notes', item.u_notes)
+      itemGr.insert()
+    }
+    
+    response.setStatus(201)
+    response.setBody({
+      result: {
+        sys_id: requestSysId,
+        number: requestGr.getValue('number'),
+        state: requestGr.getValue('state')
+      }
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function getRequestDetails(request, response) {
+  try {
+    const requestSysId = request.pathParams.sys_id
+    
+    const gr = new GlideRecord('x_682791_waremanag_request')
+    if (!gr.get(requestSysId)) {
+      response.setStatus(404)
+      response.setBody({
+        error: 'Not Found',
+        message: 'Request not found'
+      })
+      return
+    }
+    
+    // Get request items
+    const itemsGr = new GlideRecord('x_682791_waremanag_request_item')
+    itemsGr.addQuery('request', requestSysId)
+    itemsGr.query()
+    
+    const items = []
+    while (itemsGr.next()) {
+      items.push({
+        sys_id: itemsGr.getUniqueValue(),
+        item: {
+          sys_id: itemsGr.getValue('u_item'),
+          name: itemsGr.getDisplayValue('u_item'),
+          sku: itemsGr.getValue('u_item.u_sku')
+        },
+        quantity: parseFloat(itemsGr.getValue('u_quantity')),
+        status: itemsGr.getValue('u_status'),
+        serial_numbers: itemsGr.getValue('u_serial_numbers'),
+        notes: itemsGr.getValue('u_notes')
+      })
+    }
+    
+    response.setStatus(200)
+    response.setBody({
+      result: {
+        sys_id: gr.getUniqueValue(),
+        number: gr.getValue('number'),
+        requester: gr.getDisplayValue('u_requester'),
+        requested_for: gr.getDisplayValue('u_requested_for'),
+        warehouse: gr.getDisplayValue('u_warehouse'),
+        state: gr.getValue('state'),
+        priority: gr.getValue('u_priority'),
+        notes: gr.getValue('u_notes'),
+        created: gr.getValue('sys_created_on'),
+        updated: gr.getValue('sys_updated_on'),
+        items: items
+      }
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function approveRequest(request, response) {
+  try {
+    const requestSysId = request.pathParams.sys_id
+    
+    // Check admin role
+    if (!gs.hasRole('x_682791_waremanag.admin')) {
+      response.setStatus(403)
+      response.setBody({
+        error: 'Forbidden',
+        message: 'Admin role required for approval'
+      })
+      return
+    }
+    
+    const gr = new GlideRecord('x_682791_waremanag_request')
+    if (!gr.get(requestSysId)) {
+      response.setStatus(404)
+      response.setBody({
+        error: 'Not Found',
+        message: 'Request not found'
+      })
+      return
+    }
+    
+    if (gr.getValue('state') !== 'pending_approval') {
+      response.setStatus(400)
+      response.setBody({
+        error: 'Bad Request',
+        message: 'Request is not in pending approval state'
+      })
+      return
+    }
+    
+    gr.setValue('state', 'approved')
+    gr.update()
+    
+    response.setStatus(200)
+    response.setBody({
+      result: {
+        sys_id: requestSysId,
+        state: 'approved',
+        message: 'Request approved successfully'
+      }
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}
+
+export function adjustInventory(request, response) {
+  try {
+    const data = request.body.data
+    
+    // Check admin role
+    if (!gs.hasRole('x_682791_waremanag.admin')) {
+      response.setStatus(403)
+      response.setBody({
+        error: 'Forbidden',
+        message: 'Admin role required for inventory adjustment'
+      })
+      return
+    }
+    
+    if (!data.u_warehouse || !data.u_item || !data.u_quantity || !data.u_reason) {
+      response.setStatus(400)
+      response.setBody({
+        error: 'Bad Request',
+        message: 'u_warehouse, u_item, u_quantity, and u_reason are required'
+      })
+      return
+    }
+    
+    // Find or create stock record
+    const stockGr = new GlideRecord('x_682791_waremanag_stock')
+    stockGr.addQuery('u_warehouse', data.u_warehouse)
+    stockGr.addQuery('u_item', data.u_item)
+    stockGr.query()
+    
+    let currentQty = 0
+    if (stockGr.next()) {
+      currentQty = parseFloat(stockGr.getValue('u_quantity'))
+      stockGr.setValue('u_quantity', currentQty + parseFloat(data.u_quantity))
+      stockGr.setValue('u_last_updated', new GlideDateTime().getDisplayValue())
+      stockGr.update()
+    } else {
+      stockGr.initialize()
+      stockGr.setValue('u_warehouse', data.u_warehouse)
+      stockGr.setValue('u_item', data.u_item)
+      stockGr.setValue('u_quantity', data.u_quantity)
+      stockGr.setValue('u_reserved', '0')
+      stockGr.setValue('u_last_updated', new GlideDateTime().getDisplayValue())
+      stockGr.insert()
+    }
+    
+    // Create movement record
+    const movementGr = new GlideRecord('x_682791_waremanag_stock_movement')
+    movementGr.initialize()
+    movementGr.setValue('u_item', data.u_item)
+    movementGr.setValue('u_to_warehouse', data.u_warehouse)
+    movementGr.setValue('u_quantity', Math.abs(parseFloat(data.u_quantity)))
+    movementGr.setValue('u_movement_type', 'adjustment')
+    movementGr.setValue('u_reason', data.u_reason)
+    movementGr.setValue('u_performed_by', gs.getUserID())
+    movementGr.insert()
+    
+    response.setStatus(200)
+    response.setBody({
+      result: {
+        message: 'Inventory adjusted successfully',
+        adjustment: parseFloat(data.u_quantity),
+        new_quantity: currentQty + parseFloat(data.u_quantity)
+      }
+    })
+  } catch (error) {
+    response.setStatus(500)
+    response.setBody({
+      error: 'Internal Server Error',
+      message: error.message
+    })
+  }
+}]]></content>
+        <external_source>false</external_source>
+        <path>x_682791_waremanag/x-682791-waremanager/1.0.0/src/server/rest-handlers.js</path>
+        <sys_class_name>sys_module</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2025-10-24 07:43:42</sys_created_on>
+        <sys_id>1483ac51c3a94b27b671410e613bd5dc</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>x_682791_waremanag/x-682791-waremanager/1.0.0/src/server/rest-handlers.js</sys_name>
+        <sys_package display_value="Waremanager" source="x_682791_waremanag">36ee821d83303210b4b3f5a6feaad3e6</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Waremanager">36ee821d83303210b4b3f5a6feaad3e6</sys_scope>
+        <sys_update_name>sys_module_1483ac51c3a94b27b671410e613bd5dc</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2025-10-24 07:43:42</sys_updated_on>
+    </sys_module>
+</record_update>
